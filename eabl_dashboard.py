@@ -1,24 +1,23 @@
-
-
 import copy
 import dash
 from dash import dcc, html, Input, Output, State
 import plotly.graph_objects as go
 
-# === VERCEL-FRIENDLY SETUP ===
-app = dash.Dash(__name__, title="EABL × Naivas | Executive Dashboard")
+# =============================================
+# VERCEL-FRIENDLY SETUP - MUST BE AT THE TOP
+# =============================================
+dash_app = dash.Dash(__name__, title="EABL × Naivas | Executive Dashboard")
 
-# THIS VARIABLE MUST BE NAMED 'app' FOR VERCEL
-server = app.server
-app = server   # ← Add this line (re-exports the Flask app as 'app')
+# This is what Vercel imports
+server = dash_app.server
+app = server   # ← Critical: name it 'app' for Vercel
 
-# ... rest of your code (BREWERIES, functions, layout, callbacks, etc.)
-# 
-#  PROBLEM DATA & GEOGRAPHY
+# =============================================
+# YOUR DATA & LOGIC
+# =============================================
 BREWERIES = ["Kisumu", "Ruaraka", "Mombasa"]
 OUTLETS   = ["Eldoret", "Machakos", "Kisii", "Kisumu"]
 
-# Lat/Lon for Mapbox integration
 COORDS = {
     "Kisumu": {"lat": -0.1022, "lon": 34.7617},
     "Ruaraka": {"lat": -1.2540, "lon": 36.8760}, 
@@ -40,7 +39,7 @@ DEF_DEMAND = [ 80, 100,  60, 150]
 SUPPLY_RANGE = [(20, 350), (50, 400), (20, 200)]
 DEMAND_RANGE = [(20, 200), (20, 250), (20, 150), (20, 300)]
 
-#  VAM SOLVER
+# VAM SOLVER
 def vam_solve(supply_in, demand_in, costs_in):
     supply = list(supply_in)
     demand = list(demand_in)
@@ -142,12 +141,10 @@ BASE_LAYOUT = dict(
     transition=dict(duration=400, easing="cubic-in-out")
 )
 
-#  ROBUST FIGURE BUILDERS
+# FIGURE BUILDERS (unchanged)
 def build_map(routes):
     real = [r for r in routes if not r["dummy"]]
     fig = go.Figure()
-
-    # Draw connection lines
     for r in real:
         src = BREWERIES[r['src']]
         dst = OUTLETS[r['dst']]
@@ -158,8 +155,6 @@ def build_map(routes):
             line=dict(width=max(2, (r['qty'] / max(1, sum([x['qty'] for x in real]))) * 15), color=eff_color(r['uc'])),
             opacity=0.6, hoverinfo="none", showlegend=False
         ))
-
-    # Draw Nodes
     for is_brewery, locations in [(True, BREWERIES), (False, OUTLETS)]:
         fig.add_trace(go.Scattermapbox(
             mode="markers+text",
@@ -171,7 +166,6 @@ def build_map(routes):
             name="Breweries" if is_brewery else "Outlets",
             hoverinfo="text", hovertext=[f"<b>{loc}</b><br>{'Production Hub' if is_brewery else 'Naivas Outlet'}" for loc in locations]
         ))
-
     fig.update_layout(**BASE_LAYOUT)
     fig.update_layout(
         height=360, margin=dict(l=0,r=0,t=0,b=0),
@@ -200,8 +194,6 @@ def build_sankey(routes):
 def build_treemap(routes):
     real = [r for r in routes if not r["dummy"]]
     labels, parents, values, colors, texts = ["Total Cost"], [""], [sum(r['tc'] for r in real)], [TRANSPARENT], [""]
-    
-    # Breweries Layer
     for i, b in enumerate(BREWERIES):
         cost = sum(r['tc'] for r in real if r['src'] == i)
         if cost > 0:
@@ -210,8 +202,6 @@ def build_treemap(routes):
             values.append(cost)
             colors.append(rgba(BREW_COLORS[i], 0.8))
             texts.append(f"KES {cost:,}")
-
-    # Routes Layer
     for r in real:
         if r['tc'] > 0:
             lbl = f"{BREWERIES[r['src']]}→{OUTLETS[r['dst']]}"
@@ -220,7 +210,6 @@ def build_treemap(routes):
             values.append(r['tc'])
             colors.append(rgba(eff_color(r['uc']), 0.6))
             texts.append(f"Qty: {r['qty']} <br>KES {r['tc']:,}")
-
     fig = go.Figure(go.Treemap(
         labels=labels, parents=parents, values=values, marker=dict(colors=colors),
         textinfo="label+text+percent parent", text=texts,
@@ -251,7 +240,6 @@ def build_utilization(supply, routes):
     for r in routes:
         if not r["dummy"] and r["src"] < len(BREWERIES):
             used[r["src"]] += r["qty"]
-
     fig = go.Figure()
     for i, (b, s, u) in enumerate(zip(BREWERIES, supply, used)):
         pct = u / s * 100 if s else 0
@@ -285,9 +273,7 @@ def vam_steps_html(iters):
         html.Tbody(rows),
     ], style=dict(width="100%", borderCollapse="collapse", fontSize="13px"))
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  COMPONENTS
-# ─────────────────────────────────────────────────────────────────────────────
+# COMPONENTS
 def kpi_card(label, value, sub, color=TXT):
     return html.Div([
         html.Div(label, style=dict(fontSize="11px", color=MUTED, textTransform="uppercase", letterSpacing="1px", marginBottom="8px")),
@@ -318,7 +304,6 @@ def route_table_html(routes):
     real = sorted([r for r in routes if not r["dummy"]], key=lambda r: r["tc"], reverse=True)
     ef_bg = {"Efficient": "#0A2419", "Moderate": "#1D160A", "Expensive": "#291010"}
     ef_fg = {"Efficient": GREEN,     "Moderate": ACCENT,    "Expensive": RED}
-
     rows = []
     for r in real:
         tier = eff_label(r["uc"])
@@ -329,18 +314,15 @@ def route_table_html(routes):
             html.Td(f"KES {r['tc']:,}", style=dict(padding="14px 16px", color=ACCENT, fontWeight="bold", textAlign="right", borderBottom=f"1px solid {BORDER}")),
             html.Td(html.Span(tier, style=dict(fontSize="12px", fontWeight="600", color=ef_fg[tier], background=ef_bg[tier], padding="4px 12px", borderRadius="20px")), style=dict(padding="14px 16px", borderBottom=f"1px solid {BORDER}")),
         ], className="table-row-hover"))
-
     return html.Table([
         html.Thead(html.Tr([html.Th(c, style=dict(padding="14px 16px", fontSize="12px", color=MUTED, textAlign="left" if i<2 else "right" if i<4 else "left", borderBottom=f"2px solid {BORDER}", background=SURFACE)) for i, c in enumerate(["Route", "Volume", "Unit Cost (KES)", "Monthly Cost (KES)", "Efficiency Tier"])])),
         html.Tbody(rows),
     ], style=dict(width="100%", borderCollapse="collapse", fontSize="13px"))
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  APP LAYOUT
-# ─────────────────────────────────────────────────────────────────────────────
-app = dash.Dash(__name__, title="EABL × Naivas | Executive Dashboard")
-
-app.index_string = f"""
+# =============================================
+# LAYOUT
+# =============================================
+dash_app.index_string = f"""
 <!DOCTYPE html>
 <html>
   <head>
@@ -353,19 +335,15 @@ app.index_string = f"""
       ::-webkit-scrollbar {{ width: 8px; }}
       ::-webkit-scrollbar-track {{ background: {SURFACE}; }}
       ::-webkit-scrollbar-thumb {{ background: {BORDER}; border-radius: 4px; }}
-      
       .app-container {{ display: flex; height: 100vh; overflow: hidden; }}
       .sidebar {{ width: 350px; background: {SURFACE}; padding: 30px 24px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; border-right: 1px solid {BORDER}; z-index: 10; box-shadow: 4px 0 15px rgba(0,0,0,0.2);}}
       .main-content {{ flex: 1; padding: 30px 40px; overflow-y: auto; }}
-
       .tab-bar {{ display: flex; gap: 8px; margin-bottom: 24px; background: {CARD}; border-radius: 12px; padding: 6px; border: 1px solid {BORDER}; box-shadow: 0 4px 12px rgba(0,0,0,0.1);}}
       .tab-btn {{ flex: 1; padding: 12px 16px; border: none; border-radius: 8px; background: transparent; color: {MUTED}; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; }}
       .tab-btn:hover {{ color: {TXT}; background: rgba(255,255,255,0.03); }}
       .tab-btn.active {{ color: {BG}; background: {ACCENT}; font-weight: 700; box-shadow: 0 2px 10px rgba(244, 180, 26, 0.3); }}
-
       .export-btn {{ width: 100%; padding: 14px; background: transparent; color: {TXT}; border: 1px solid {ACCENT}; border-radius: 8px; font-family: 'Inter'; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: auto;}}
       .export-btn:hover {{ background: {ACCENT}; color: {BG}; box-shadow: 0 4px 12px rgba(244, 180, 26, 0.3);}}
-
       .rc-slider-rail {{ background: {BORDER} !important; height: 6px !important; border-radius: 3px !important; }}
       .rc-slider-track {{ background: {ACCENT} !important; height: 6px !important; border-radius: 3px !important;}}
       .rc-slider-handle {{ border: 3px solid {ACCENT} !important; background: {CARD} !important; width: 18px !important; height: 18px !important; margin-top: -6px !important; box-shadow: 0 0 0 4px {rgba(ACCENT, 0.15)} !important; cursor: grab !important; transition: transform 0.1s ease !important; }}
@@ -381,18 +359,14 @@ app.index_string = f"""
 </html>
 """
 
-app.layout = html.Div(className="app-container", children=[
+dash_app.layout = html.Div(className="app-container", children=[
     dcc.Download(id="download-csv"),
-    
-    # ── SIDEBAR ──
     html.Div(className="sidebar", children=[
         html.Div([
             html.Div("EABL × NAIVAS", style=dict(fontSize="13px", color=ACCENT, fontWeight="700", letterSpacing="2px", marginBottom="6px")),
             html.H1("Logistics Hub", style=dict(fontSize="24px", fontWeight="700", color=TXT, margin=0, lineHeight="1.2")),
         ], style=dict(marginBottom="10px")),
-
         html.Div("SCENARIO CONTROLS", style=dict(fontSize="11px", fontWeight="700", color=MUTED, letterSpacing="1px", marginTop="10px", borderBottom=f"1px solid {BORDER}", paddingBottom="8px")),
-        
         html.Div([
             html.Div("Breweries Supply (100c)", style=dict(fontSize="12px", color=TXT, fontWeight="600", marginBottom="16px")),
             *[slider_row(b, f"sup-{i}", *SUPPLY_RANGE[i], DEF_SUPPLY[i], BREW_COLORS[i]) for i, b in enumerate(BREWERIES)],
@@ -401,34 +375,27 @@ app.layout = html.Div(className="app-container", children=[
             html.Div("Outlets Demand (100c)", style=dict(fontSize="12px", color=TXT, fontWeight="600", marginBottom="16px")),
             *[slider_row(o, f"dem-{i}", *DEMAND_RANGE[i], DEF_DEMAND[i], OUTLET_COLORS[i]) for i, o in enumerate(OUTLETS)],
         ]),
-        
         html.Button("📥 Export Allocation CSV", id="btn-export", className="export-btn")
     ]),
-
-    # ── MAIN CONTENT ──
     html.Div(className="main-content", children=[
         html.Div(id="balance-badge", style=dict(marginBottom="24px")),
         html.Div(id="kpi-row", style=dict(display="flex", gap="16px", marginBottom="24px")),
-
         html.Div([
             html.Button("🌍 Network Routing", id="tab-btn-flows", n_clicks=0, className="tab-btn active"),
             html.Button("💰 Cost Analytics",  id="tab-btn-costs", n_clicks=0, className="tab-btn"),
             html.Button("🧠 Algorithm Matrix",id="tab-btn-matrix",n_clicks=0, className="tab-btn"),
         ], className="tab-bar"),
-
         dcc.Store(id="active-tab", data="flows"),
         html.Div(id="tab-content", style=dict(marginBottom="24px")),
-
         section("Master Allocation Schedule", "Optimized monthly freight logic sorted by total route cost", [html.Div(id="route-table")]),
-        
         html.Div("EABL Distribution Engine · Powered by Dash & VAM Algorithm · Dean Munywoki, Strathmore University", style=dict(fontSize="12px", color=MUTED, textAlign="center", marginTop="40px", paddingTop="24px", borderTop=f"1px solid {BORDER}")),
     ])
 ])
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  CALLBACKS
-# ─────────────────────────────────────────────────────────────────────────────
-@app.callback(
+# =============================================
+# CALLBACKS
+# =============================================
+@dash_app.callback(
     Output("active-tab", "data"),
     Output("tab-btn-flows", "className"), Output("tab-btn-costs", "className"), Output("tab-btn-matrix", "className"),
     Input("tab-btn-flows", "n_clicks"), Input("tab-btn-costs", "n_clicks"), Input("tab-btn-matrix", "n_clicks"),
@@ -439,7 +406,7 @@ def switch_tab(n_flows, n_costs, n_matrix):
     active = tab_map.get(ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "tab-btn-flows", "flows")
     return active, "tab-btn active" if active=="flows" else "tab-btn", "tab-btn active" if active=="costs" else "tab-btn", "tab-btn active" if active=="matrix" else "tab-btn"
 
-@app.callback(
+@dash_app.callback(
     Output("kpi-row", "children"), Output("tab-content", "children"), Output("balance-badge", "children"), Output("route-table", "children"),
     *[Output(f"sup-{i}-val", "children") for i in range(3)], *[Output(f"dem-{i}-val", "children") for i in range(4)],
     Input("active-tab", "data"),
@@ -464,7 +431,6 @@ def update_dashboard(tab, s0, s1, s2, d0, d1, d2, d3):
     ]
 
     diff = ts - td
-    
     if diff == 0:
         b_text = "✓ Network Fully Balanced (Supply = Demand)"
         b_fg = GREEN
@@ -480,11 +446,7 @@ def update_dashboard(tab, s0, s1, s2, d0, d1, d2, d3):
 
     balance = html.Div(
         b_text, 
-        style=dict(
-            fontSize="13px", color=b_fg, background=b_bg, 
-            padding="12px 20px", borderRadius="8px", 
-            fontWeight="600", border=f"1px solid {b_fg}40"
-        )
+        style=dict(fontSize="13px", color=b_fg, background=b_bg, padding="12px 20px", borderRadius="8px", fontWeight="600", border=f"1px solid {b_fg}40")
     )
 
     if tab == "flows":
@@ -497,9 +459,7 @@ def update_dashboard(tab, s0, s1, s2, d0, d1, d2, d3):
         ])
     elif tab == "costs":
         content = html.Div([
-            html.Div([
-                section("Financial Exposure Treemap", "Deep dive into cost centers. Size = Capital Allocation.", [dcc.Graph(figure=build_treemap(routes), config=dict(displayModeBar=False))], style=dict(flex="1"))
-            ], style=dict(display="flex", gap="16px")),
+            html.Div([section("Financial Exposure Treemap", "Deep dive into cost centers. Size = Capital Allocation.", [dcc.Graph(figure=build_treemap(routes), config=dict(displayModeBar=False))], style=dict(flex="1"))], style=dict(display="flex", gap="16px")),
         ])
     else:
         content = html.Div([
@@ -511,7 +471,7 @@ def update_dashboard(tab, s0, s1, s2, d0, d1, d2, d3):
 
     return kpis, content, balance, route_table_html(routes), *[f"{v} units" for v in supply + demand]
 
-@app.callback(
+@dash_app.callback(
     Output("download-csv", "data"),
     Input("btn-export", "n_clicks"),
     State("sup-0", "value"), State("sup-1", "value"), State("sup-2", "value"),
@@ -522,12 +482,10 @@ def generate_csv(n_clicks, s0, s1, s2, d0, d1, d2, d3):
     supply = [s0 or DEF_SUPPLY[0], s1 or DEF_SUPPLY[1], s2 or DEF_SUPPLY[2]]
     demand = [d0 or DEF_DEMAND[0], d1 or DEF_DEMAND[1], d2 or DEF_DEMAND[2], d3 or DEF_DEMAND[3]]
     routes, _ = vam_solve(supply, demand, COSTS)
-    
     csv_str = "Source,Destination,Volume (100 Crates),Unit Cost (KES),Monthly Total Cost (KES)\n"
     for r in sorted([r for r in routes if not r["dummy"]], key=lambda r: r["tc"], reverse=True):
         csv_str += f"{BREWERIES[r['src']]},{OUTLETS[r['dst']]},{r['qty']},{r['uc']},{r['tc']}\n"
-    
     return dict(content=csv_str, filename="EABL_Naivas_Logistics_Schedule.csv")
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8050)
+    dash_app.run(debug=True, port=8050)

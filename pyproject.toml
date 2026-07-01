@@ -10,4 +10,5 @@ dependencies = [
 ]
 
 [tool.vercel]
-entrypoint = "eabl_dashboard:app"
+python = "3.12"
+entrypoint = "eabl_dashboard:server"   # ← Changed to :server (the Flask instance)

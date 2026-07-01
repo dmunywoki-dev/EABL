@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "eabl_dashboard.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/eabl_dashboard.py"
+    }
+  ]
+}

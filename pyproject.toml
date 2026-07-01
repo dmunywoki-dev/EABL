@@ -1,2 +1,12 @@
+[project]
+name = "eabl-dashboard"
+version = "0.1.0"
+description = "EABL Logistics Optimization Dashboard"
+requires-python = ">=3.12"
+dependencies = [
+    "dash>=2.14.0",
+    "plotly>=5.18.0",
+]
+
 [tool.vercel]
 entrypoint = "eabl_dashboard:app"

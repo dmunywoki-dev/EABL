@@ -1,0 +1,2 @@
+[tool.vercel]
+entrypoint = "eabl_dashboard:app"

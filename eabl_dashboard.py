@@ -5,15 +5,14 @@ import dash
 from dash import dcc, html, Input, Output, State
 import plotly.graph_objects as go
 
-# Create the Dash App
+# === VERCEL-FRIENDLY SETUP ===
 app = dash.Dash(__name__, title="EABL × Naivas | Executive Dashboard")
 
-# THIS IS THE KEY LINE VERCEL NEEDS
-server = app.server   # Flask WSGI app
+# THIS VARIABLE MUST BE NAMED 'app' FOR VERCEL
+server = app.server
+app = server   # ← Add this line (re-exports the Flask app as 'app')
 
-# Rest of your code (BREWERIES, COSTS, VAM solver, colors, figure builders, etc.) ...
-# ... keep everything exactly as you had it
-
+# ... rest of your code (BREWERIES, functions, layout, callbacks, etc.)
 # 
 #  PROBLEM DATA & GEOGRAPHY
 BREWERIES = ["Kisumu", "Ruaraka", "Mombasa"]

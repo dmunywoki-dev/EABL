@@ -5,6 +5,12 @@ import dash
 from dash import dcc, html, Input, Output, State
 import plotly.graph_objects as go
 
+# Create the Dash App instance
+app = dash.Dash(__name__)
+
+# EXPOSE THE FLASK SERVER INSTANCE FOR VERCEL (Crucial)
+server = app.server 
+
 # 
 #  PROBLEM DATA & GEOGRAPHY
 BREWERIES = ["Kisumu", "Ruaraka", "Mombasa"]
